@@ -58,12 +58,16 @@ class ClueWebMetadataScanner:
 
     def gather_metadata(self, worker_id: int, pipew: Connection) -> None:
         """
-        Scan a single ClueWeb .json.gz text file and extract metadata to a new CSV file.
+        Scan multiple ClueWeb .json.gz text files, extracting metadata to a new CSV file.
 
         This is the target method for the multiprocessing.Process objects spawned by
-        the main process. Each instance iterates through each record in a ClueWeb text 
-        format .json.gz file, extracting all fields except the full text and writing them 
-        to a new per-process CSV file.
+        the main process. Each instance enters a loop of:
+            - requesting a new file from the parent process
+            - iterating through each record in the file (.json.gz format)
+            - extracting all metadata fields 
+            - writing these to a per-process .csv file
+        
+        This continues until no more files are available to be scanned.
 
         Args:
             worker_id (int): index of this worker in the process pool
