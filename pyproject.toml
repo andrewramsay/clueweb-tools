@@ -1,0 +1,6 @@
+[tool.black]
+max-line-length = 125
+[tool.ruff]
+select = ["E", "F", "B"]
+ignore = ["F401"]
+line-length = 125
