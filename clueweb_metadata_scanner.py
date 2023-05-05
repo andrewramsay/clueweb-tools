@@ -174,7 +174,7 @@ class ClueWebMetadataScanner:
 
         try:
             while num_finished < len(processes):
-                # wait for a worker to request a new batch of files. this call will return
+                # wait for a worker to request a new file. this call will return
                 # if any of the Pipes have data waiting, or if the timeout expires
                 ready_to_read = multiprocessing.connection.wait(pipe_readers, timeout=0.1)
 
