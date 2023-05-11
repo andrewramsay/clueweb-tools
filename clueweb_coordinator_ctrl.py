@@ -22,7 +22,7 @@ if __name__ == "__main__":
 
     ctx = zmq.Context()
     sock = ctx.socket(zmq.REQ)
-    sock.connect(f'tcp://{sys.argv[1]}:23457')
+    sock.connect(f'tcp://{args.address}:23457')
 
     if args.exit:
         sock.send_pyobj((ZMSG_LOCAL_EXIT, None))
