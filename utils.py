@@ -65,13 +65,14 @@ def sort_csv_parallel_sh(src: str, dst: str, cores: int = 8, buffer_gb: int = 10
     os.makedirs(dst, exist_ok=True)
 
     successful = 0
-    for d in os.listdir(src):
-        for csv in os.listdir(os.path.join(src, d)):
+
+    for root, _, files in os.walk(src):
+        for csv in files:
             if not csv.endswith('csv'):
                 continue
 
             # output filename has .sorted appended
-            src = os.path.join(src, d, csv)
+            src = os.path.join(src, root, csv)
             dest = os.path.join(dst, csv + '.sorted')
 
             src_sz = os.stat(src).st_size
