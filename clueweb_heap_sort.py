@@ -120,9 +120,8 @@ def run(args: argparse.Namespace) -> None:
         if lines_written % 1_000_000 == 0:
             print(f'> Written = {lines_written:,}, heap length={len(heap)}, files left={len(sorted_files)}')
             elapsed = time.time() - start_time
-            total = 10_000_000_001 # total number of ClueWeb22_L records
-            percent = 100 * (lines_written / total)
-            remaining = (total - lines_written) / (lines_written / elapsed)
+            percent = 100 * (lines_written / args.total_records)
+            remaining = (args.total_records - lines_written) / (lines_written / elapsed)
             print(f'> Completed: {percent:.3f}%, ETC = {fmt_timespan(remaining)}')
 
     output_file.close()
@@ -132,5 +131,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-i', '--input', help='Path to folder of already-sorted input files', required=True, type=str)
     parser.add_argument('-o', '--output', help='Filename of the final merged and sorted output file', required=True, type=str)
+    parser.add_argument('-t', '--total_records', help='Expected total number of records (for progress estimates)', default=10_000_000_001, type=int)
     args = parser.parse_args()
     run(args)
