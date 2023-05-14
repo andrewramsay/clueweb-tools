@@ -2,7 +2,6 @@ import heapq
 import os
 import time
 import argparse
-from typing import Any
 
 from utils import fmt_timespan
 
@@ -17,7 +16,7 @@ class File:
         self.lines_read = 0
         self.exhausted = False
 
-    def read_line(self) -> Any[None, str]:
+    def read_line(self) -> None | str:
         """
         Returns the next line from the file, or None if at EOF.
 
