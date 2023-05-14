@@ -98,7 +98,7 @@ class ClueWebMetadataScannerDynamic:
         completed_ok = True
 
         # create an output path based on the worker ID so we get 1 CSV file for each spawned process
-        output_csv = os.path.join(self.args.output, self.job_id + f'-w{worker_id}.csv')
+        output_csv = os.path.join(self.args.output, self.job_id + f'-worker{worker_id}.csv')
         os.makedirs(args.output, exist_ok=True)
         if os.path.exists(output_csv):
             raise Exception(f'Output file {output_csv} already exists!')
