@@ -67,8 +67,8 @@ class ClueWebCounter:
             buf = fp.read(bufsz)
             i += 1
 
-            if i % 100 == 0:
-                print(f'{filename}: {(i * bufsz)/(1024*1024*1024):.3f}GB')
+            if i % 200 == 0:
+                print(f'{filename}: {(i * bufsz)/(1024**3):.3f}GB')
 
         print(f'{filename} has {lines} lines')
         self.count_db.execute('INSERT INTO counts VALUES (?, ?)', (os.path.split(filename)[1], lines))
@@ -87,25 +87,32 @@ class ClueWebCounter:
         Returns:
             None
         """
-        # results_path is assumed to contain a subdirectory for each job, named to match
-        # the job ID
-        for job_name in os.listdir(self.results_path):
+
+        # this expects to find a single folder of .csv files named:
+        #    <job_id>.csv
+        csv_files = {}
+        for root, _, files in os.walk(self.results_path):        
+            for f in files:
+                if f.endswith('.csv'):
+                    job_id = os.path.splitext(f)[0]
+                    csv_files[job_id] = os.path.join(root, f)
+            
+        for job_name, job_results_file in csv_files.items(): 
             # this is the total number of records across all files processed by this job
             db_count = self.db.get_record_count_for_job(job_name)
 
-            # gather the names of the CSV files produced by the job
-            csv_files = [os.path.join(self.results_path, job_name, f) for f in os.listdir(os.path.join(self.results_path, job_name))]
-            csv_files.sort()
-
             # count the number of lines in each file and sum 
-            file_count = sum([self.count_lines(f) for f in csv_files if f.endswith('csv')])
+            file_count = self.count_lines(job_results_file)
 
-            # verify things match up with the database counts (these are taken from the
-            # ClueWeb record_counts files originally)
-            if db_count == file_count:
-                logging.info(f'{job_name}: DB={db_count}, files={file_count}')
+            # verify things match up with the database counts (these are taken 
+            # originally taken from the ClueWeb record_counts files)
+            if file_count > 0:
+                if db_count == file_count:
+                    logging.info(f'{job_name}: DB={db_count}, files={file_count}')
+                else:
+                    logging.warning(f'{job_name}: DB={db_count}, files={file_count} ***')
             else:
-                logging.warning(f'{job_name}: DB={db_count}, files={file_count} ***')
+                logging.info(f'{job_name}: skipping empty file')
             
       
 if __name__ == "__main__":
