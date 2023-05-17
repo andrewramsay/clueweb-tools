@@ -92,6 +92,7 @@ def run(args: argparse.Namespace) -> None:
     lines_read = 0
     lines_written = 0
     start_time = time.time()
+    last_id = None
 
     # start by filling the heap
     for f in sorted_files.values():
@@ -102,8 +103,11 @@ def run(args: argparse.Namespace) -> None:
     while len(sorted_files) > 0:
         # pop next line to be written
         next_id, next_line, src = heapq.heappop(heap)
+        if last_id is not None and last_id == next_id:
+            raise Exception(f'Found duplicate ID {last_id}')
         output_file.write(next_line)
         lines_written += 1
+        last_id = next_id
 
         # try to replace the popped line with one from the same file
         new_line = src.read_line()
