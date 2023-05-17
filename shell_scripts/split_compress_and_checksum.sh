@@ -40,7 +40,7 @@ split -d -l "${LINES}" --additional-suffix=.csv "${CSV}" "${PREFIX}"
 echo "> Finished splitting files"
 
 # now compress and checksum each of the split files
-for f in "${PREFIX}"*
+for f in "${PREFIX}"*.csv
 do
     echo "> Compressing ${f}"
     # -9 means best compression level
