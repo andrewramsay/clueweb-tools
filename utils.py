@@ -1,6 +1,12 @@
 import time
 import subprocess
 import os
+import gzip
+from typing import Tuple, List
+
+# each offset value in the .offset files consists of a 10 digit
+# character string plus a newline
+OFFSET_SIZE_BYTES = 11
 
 def fmt_timespan(t_secs: float) -> str:
     """
@@ -105,4 +111,100 @@ def sort_csv_parallel_sh(src: str, dst: str, cores: int = 8, buffer_gb: int = 10
 
     return successful
 
+def id_to_data_file_path(root: str, id: str, filetype:str = 'txt') -> Tuple[str, str]:
+    """
+    Convert a ClueWeb22-ID into a path to the data file containing that record.
 
+    Args:
+        root (str): root folder of the ClueWeb22 collection
+        id (str): ClueWeb22-ID
+
+    Returns:
+        tuple(str, str): a 2-tuple containing the path to the file and its offset file
+    """
+
+    # ID format: clueweb22-<subdir>-<file sequence>-<record id>
+    # e.g. clueweb22-en0000-00-00000 means:
+    #   - start from the filetype folder, e.g. txt
+    #   - move into the folder for the language code (part of the <subdir>
+    #   - move into the folder named <language code><first 2 digits of subdir>, e.g. en00
+    #   - move into the folder named <subdir>
+    #   - select the file named <subdir>-<file sequence>.<format> (e.g. json.gz)
+
+    # don't care about the prefix
+    if id.startswith('clueweb22-'):
+        id = id[10:]
+    subdir, file_seq, _ = id.split('-')
+
+    # need the language code
+    def find_first_digit(s):
+        for i, c in enumerate(s):
+            if c.isdigit():
+                return i
+        return -1
+
+    digit_index = find_first_digit(subdir)
+    lang = subdir[:digit_index]
+    parent = subdir[:digit_index+2]
+    
+    format = 'json.gz' if filetype == 'txt' else 'warc.gz'
+    path = os.path.join(root, filetype, lang, parent, subdir, f'{subdir}-{file_seq}.{format}')
+    # data and offset files for txt data are named <foo>.json.gz and <foo>.offset
+    # data and offset files for html data are named <foo>.warc.gz and <foo>.warc.offset
+    offset_path = path.replace(format if filetype == 'txt' else 'gz', 'offset')
+    return path, offset_path
+
+def get_offsets(offset_file: str, record_ids: List[int]) -> List[Tuple[int, int]]:
+    """
+    Read start+end offsets for a record from an offset file.
+
+    Given a path to an offset file and a list of record IDs, seek
+    to the locations in the file where the offset values for the records are
+    located. Then read the next 2 values (starting and ending offsets), convert
+    to ints, and add to the returned list (values are stored as 10-digit character strings).
+
+    Args:
+        offset_fileobj (TextIO): an already-opened file object for the offset file
+        record_id (List[int]): IDs (0-99999) of the records to get offsets for
+
+    Returns:
+        List[tuple(int, int)]: the starting and ending offsets of each record 
+    """
+
+    results = []
+    with open(offset_file, 'r') as ofp:
+        for record_id in record_ids:
+            # format is <subdir>-<file seq>-<record seq>
+            # e.g. en0000-00-00000
+            record_seq = int(record_id.split('-')[2])
+            # seek to the location in the offset file where we'll find the offsets for this record ID
+            ofp.seek(record_seq * OFFSET_SIZE_BYTES)
+            # read the next pair of offset values (start + end)
+            offset_data = ofp.read(OFFSET_SIZE_BYTES * 2)
+            if len(offset_data) < OFFSET_SIZE_BYTES * 2:
+                raise Exception(f'Failed to read offset data: got {len(offset_data)} bytes, expected {OFFSET_SIZE_BYTES * 2} bytes')
+
+            offset_start, offset_end = offset_data[:OFFSET_SIZE_BYTES-1], offset_data[OFFSET_SIZE_BYTES+1:-1]
+            results.append((int(offset_start), int(offset_end)))
+
+    return results
+
+def extract_records(data_file_path: str, offsets: List[Tuple[int, int]]) -> List[bytes]:
+    """
+    Extract and decompress a single record from a gzipped data file given its byte offsets.
+
+    Args:
+        data_file_path (str): path to the data file to extract a record from
+        offsets (List[Tuple[int, int]]): list of tuples of offset (start, end) byte values
+
+    Returns:
+        List[bytes]: compressed record data for each set of offsets
+    """
+    results = []
+    with open(data_file_path, 'rb') as fp:
+        for offset_start, offset_end in offsets:
+            fp.seek(offset_start, 0)
+            gzdata = fp.read(offset_end - offset_start)
+            results.append(gzdata)
+
+    return results
