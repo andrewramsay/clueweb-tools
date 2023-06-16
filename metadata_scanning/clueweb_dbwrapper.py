@@ -97,10 +97,20 @@ class ClueWebFileDatabase:
                             finished TEXT
                         )''')
 
-        # insert the files in a single transaction
+        # insert the files in a single transaction, sorting them first. The sorting is
+        # uesful because it ensures that the output files from the worker processes that
+        # perform the scanning will also be sorted because files are retrieved from the
+        # database from beginning to end. So even though there will be gaps in the record
+        # numbering within a single worker output file, that set of records will be in
+        # sorted order. This is useful because it avoids having to sort potentially very 
+        # large CSV files later, and allow a final fully-sorted file to be generated using
+        # clueweb_heap_sort.py
+        sorted_data_file_keys = list(data_files.keys())
+        sorted_data_file_keys.sort()
+
         cur.execute('BEGIN TRANSACTION')
-        for value in data_files.values():
-            data_file_path, records = value
+        for key in sorted_data_file_keys:
+            data_file_path, records = data_files[key]
             # each entry is inserted with the state set to NOT_STARTED and a blank start/end time
             cur.execute('INSERT INTO files VALUES (NULL, ?, ?, ?, NULL, NULL, NULL)', 
                             (data_file_path, records, ClueWebFileDatabase.NOT_STARTED ))
