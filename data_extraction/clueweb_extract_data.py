@@ -1,12 +1,12 @@
 import os
-import gzip
 import argparse
 import time
-from typing import TextIO, Tuple
+import sys
 import concurrent.futures
 from concurrent.futures import ThreadPoolExecutor
 
-from utils import id_to_data_file_path, get_offsets, extract_records, fmt_timespan
+sys.path.append(os.path.dirname(os.path.split(os.path.abspath(__file__))[0]))
+from misc.utils import id_to_data_file_path, get_offsets, extract_records, fmt_timespan
 
 # each offset value in the .offset files consists of a 10 digit
 # character string plus a newline

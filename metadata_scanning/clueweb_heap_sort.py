@@ -2,8 +2,10 @@ import heapq
 import os
 import time
 import argparse
+import sys
 
-from utils import fmt_timespan
+sys.path.append(os.path.dirname(os.path.split(os.path.abspath(__file__))[0]))
+from misc.utils import fmt_timespan
 
 class File:
     """

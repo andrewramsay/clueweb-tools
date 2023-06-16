@@ -1,7 +1,9 @@
 import os
 import argparse
+import sys
 
-from utils import sort_csv_parallel_sh
+sys.path.append(os.path.dirname(os.path.split(os.path.abspath(__file__))[0]))
+from misc.utils import sort_csv_parallel_sh
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

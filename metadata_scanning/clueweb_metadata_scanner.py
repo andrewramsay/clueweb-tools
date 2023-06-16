@@ -6,6 +6,7 @@ import logging
 import multiprocessing
 import multiprocessing.connection
 import os
+import sys
 import time
 from multiprocessing.connection import Connection
 
@@ -17,7 +18,8 @@ from clueweb_zmq import (
     ZMSG_FINISHED,
     ZMSG_NEWJOB,
 )
-from utils import fmt_timespan
+sys.path.append(os.path.dirname(os.path.split(os.path.abspath(__file__))[0]))
+from misc.utils import fmt_timespan
 
 logging.basicConfig(
         format='%(asctime)s [%(levelname)s] %(message)s',
