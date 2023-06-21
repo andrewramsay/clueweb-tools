@@ -111,6 +111,57 @@ def sort_csv_parallel_sh(src: str, dst: str, cores: int = 8, buffer_gb: int = 10
 
     return successful
 
+def id_to_path_components(id: str) -> Tuple[str, str, str, str]:
+    """
+    Convert a ClueWeb22-ID into its path components. 
+
+    The document IDs are defined as clueweb22-<subdir>-<file seq>-<doc seq>.
+    This method takes an ID and returns a tuple containing the following values:
+        - language code (e.g. "en")
+        - stream ID: (e.g. "en00")
+        - subdirectory: (e.g. "en0003")
+        - filename (e.g. "en0003-18", no extension)
+    
+    Args:
+        id (str): a ClueWeb22-ID in the standard format
+   
+    Returns:
+        tuple(str, str, str, str): a 4-tuple containing (language code, stream ID, subdir, base filename)
+    """
+
+    # https://lemurproject.org/clueweb22/docspecs.php#Organization
+    # https://lemurproject.org/clueweb22/docspecs.php#DocIds
+    # 
+    # ID format: clueweb22-<subdir>-<file sequence>-<record id>
+    # e.g. clueweb22-en0000-00-00000 means:
+    #   - start from the filetype folder, e.g. txt
+    #   - move into the folder for the language code (part of the <subdir>
+    #   - move into the folder named <language code><first 2 digits of subdir>, e.g. en00
+    #   - move into the folder named <subdir>
+    #   - select the file named <subdir>-<file sequence>.<format> (e.g. json.gz)
+
+    # don't care about the prefix
+    if id.startswith('clueweb22-'):
+        id = id[10:]
+    # can also ignore the record number given in the final field of the ID
+    subdir, file_seq, _ = id.split('-')
+
+    def find_first_digit(s):
+        for i, c in enumerate(s):
+            if c.isdigit():
+                return i
+        return -1
+
+    # language codes may be different lengths, so look for the
+    # first digit to extract these
+    digit_index = find_first_digit(subdir)
+    lang = subdir[:digit_index]
+
+    # the stream IDs are always 2 digits immediately after the language code
+    stream_id = subdir[:digit_index+2]
+
+    return (lang, stream_id, subdir, f'{subdir}-{file_seq}') 
+    
 def id_to_data_file_path(root: str, id: str, filetype:str = 'txt') -> Tuple[str, str]:
     """
     Convert a ClueWeb22-ID into a path to the data file containing that record.
@@ -123,32 +174,10 @@ def id_to_data_file_path(root: str, id: str, filetype:str = 'txt') -> Tuple[str,
         tuple(str, str): a 2-tuple containing the path to the file and its offset file
     """
 
-    # ID format: clueweb22-<subdir>-<file sequence>-<record id>
-    # e.g. clueweb22-en0000-00-00000 means:
-    #   - start from the filetype folder, e.g. txt
-    #   - move into the folder for the language code (part of the <subdir>
-    #   - move into the folder named <language code><first 2 digits of subdir>, e.g. en00
-    #   - move into the folder named <subdir>
-    #   - select the file named <subdir>-<file sequence>.<format> (e.g. json.gz)
+    lang_code, stream_id, subdir, filename = id_to_path_components(id)
 
-    # don't care about the prefix
-    if id.startswith('clueweb22-'):
-        id = id[10:]
-    subdir, file_seq, _ = id.split('-')
-
-    # need the language code
-    def find_first_digit(s):
-        for i, c in enumerate(s):
-            if c.isdigit():
-                return i
-        return -1
-
-    digit_index = find_first_digit(subdir)
-    lang = subdir[:digit_index]
-    parent = subdir[:digit_index+2]
-    
     format = 'json.gz' if filetype == 'txt' else 'warc.gz'
-    path = os.path.join(root, filetype, lang, parent, subdir, f'{subdir}-{file_seq}.{format}')
+    path = os.path.join(root, filetype, lang_code, stream_id, subdir, f'{filename}.{format}')
     # data and offset files for txt data are named <foo>.json.gz and <foo>.offset
     # data and offset files for html data are named <foo>.warc.gz and <foo>.warc.offset
     offset_path = path.replace(format if filetype == 'txt' else 'gz', 'offset')
