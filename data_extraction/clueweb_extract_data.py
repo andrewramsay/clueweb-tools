@@ -2,6 +2,8 @@ import os
 import argparse
 import time
 import sys
+from pathlib import Path
+from typing import TextIO, Tuple, List
 import concurrent.futures
 from concurrent.futures import ThreadPoolExecutor
 
@@ -48,6 +50,8 @@ class ClueWebDataExtractor:
             raise Exception(f'Missing file: {self.records_file}')
 
         self.record_ids = []
+        # read the list of record IDs from the indicated file, stripping off the prefix
+        # since we don't need it later on
         with open(self.records_file, 'r') as rf:
             for line in rf.readlines():
                 if line.startswith('clueweb22-'):
@@ -57,16 +61,33 @@ class ClueWebDataExtractor:
         if len(self.record_ids) == 0:
             raise Exception(f'Failed to parse any record IDs from {self.records_file}')
         
-    def extract_data(self, data_path, offset_path, record_ids):
+    def extract_data(self, data_path: str, offset_path: str, record_ids: List[str]) -> int:
+        """
+        Extract a set of ClueWeb-22 records from a single file.
+
+        Args:
+            data_path (str): path to the compressed data file (.json.gz or .warc.gz)
+            offset_path (str): path to the corresponding .offset file
+            record_ids (List[str]): the set of record IDs to extract (5 digit strings)
+
+        Returns:
+            the number of extracted records
+        """
         offsets = get_offsets(offset_path, record_ids)
         record_data = extract_records(data_path, offsets)
 
-        # write output files to <output_path>/<subdir>-<file seq>, 
-        # e.g. output_path/en0000-00/
-        output_path = os.path.join(self.output_path, os.path.split(data_path)[1][:-8])
+        # write output files to <output_path> with a similar directory structure
+        # to the original dataset (<lang code>/<stream ID>/<subdir>/*). To do this
+        # we want to copy some of the path components from the original data file path
+        [lang_code, stream_id, subdir, filename] = Path(data_path).parts[-4:]
+
+        # create the directory structure. the [:-8] slicing is to remove the extension
+        # from the data file, which will either be .warc.gz or .json.gz depending on the 
+        # format (i.e. both 8 characters long)
+        output_path = os.path.join(self.output_path, lang_code, stream_id, subdir, filename[:-8])
         os.makedirs(output_path, exist_ok=True)
         for i, record_id in enumerate(record_ids):
-            # TODO decompress optionally
+            # TODO decompress here if the "decompress" parameter is set
             output_file = os.path.join(output_path, record_id + '.gz')
             if not os.path.exists(output_file):
                 with open(output_file, 'wb') as df:
@@ -75,6 +96,14 @@ class ClueWebDataExtractor:
         return len(record_data)
 
     def run(self) -> None:
+        """
+        Extract the records matching the supplied set of record IDs.
+
+        Converts the original list of record IDs to extract into a dict which is keyed
+        by data filenames, so that we only need to to open any data file once to 
+        extract all the referenced records in it. Then use a ThreadPool to distribute
+        the set of read operations over the configured number of workers. 
+        """
         os.makedirs(self.output_path, exist_ok=True)
 
         # start by gathering a list of paths for the record IDs we've been given, and
@@ -93,7 +122,9 @@ class ClueWebDataExtractor:
         started_at = time.time()
         total_extracted = 0
         last_extracted = 0
-        # break down the input into smaller chunks
+
+        # create a ThreadPool with the specified number of worker threads, and distribute
+        # the set of records across the pool
         with ThreadPoolExecutor(max_workers=self.workers) as pool:
             future_objs = []
             for data_path in files_to_access:
@@ -108,21 +139,6 @@ class ClueWebDataExtractor:
                     remaining = (len(self.record_ids) - total_extracted) / (total_extracted / elapsed)
                     print(f'> Extracted = {total_extracted}/{len(self.record_ids)}, elapsed = {elapsed:.1f}s, remaining={fmt_timespan(remaining)}')
                     last_extracted = total_extracted
-                
-
-        # for each data file that needs to be opened, first extract the list of
-        # record offsets from its corresponding offset file for the referenced 
-        # record IDs, and then open the data file itself and use the offsets to
-        # extract the record data
-
-        # for data_path in files_to_access.keys():
-        #     total_extracted += len(record_data)
-        #     # ...
-        #     if total_extracted - last_extracted > 100:
-        #         elapsed = time.time() - started_at
-        #         remaining = (len(self.record_ids) - total_extracted) / (total_extracted / elapsed)
-        #         print(f'> Extracted = {total_extracted}/{len(self.record_ids)}, elapsed = {elapsed:.1f}s, remaining={fmt_timespan(remaining)}')
-        #         last_extracted = total_extracted
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
