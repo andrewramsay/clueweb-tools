@@ -183,7 +183,7 @@ def id_to_data_file_path(root: str, id: str, filetype:str = 'txt') -> Tuple[str,
     offset_path = path.replace(format if filetype == 'txt' else 'gz', 'offset')
     return path, offset_path
 
-def get_offsets(offset_file: str, record_ids: List[int]) -> List[Tuple[int, int]]:
+def get_offsets(offset_file: str, record_ids: List[str]) -> List[Tuple[int, int]]:
     """
     Read start+end offsets for a record from an offset file.
 
@@ -194,7 +194,7 @@ def get_offsets(offset_file: str, record_ids: List[int]) -> List[Tuple[int, int]
 
     Args:
         offset_fileobj (TextIO): an already-opened file object for the offset file
-        record_id (List[int]): IDs (0-99999) of the records to get offsets for
+        record_id (List[str]): ClueWeb22-IDs of the records to get offsets for
 
     Returns:
         List[tuple(int, int)]: the starting and ending offsets of each record 
