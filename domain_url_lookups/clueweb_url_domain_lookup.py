@@ -131,5 +131,3 @@ if __name__ == "__main__":
 
             lookup.write_results(results, args.output_file)
             print(f'> Wrote {len(results)} total domain hits to {args.output_file}')
-
-    # app.run(debug=True, host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
