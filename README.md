@@ -78,7 +78,39 @@ python clueweb_heap_sort.py -i <path to worker .csv output files> -o <output CSV
 
 ## Domain and URL lookups
 
-TODO
+The scripts in `domain_url_lookups` depend on having created an SQLite database containing an indexed table mapping ClueWeb22-IDs to URLs. The schema is as follows:
+
+```
+CREATE TABLE urls (id INTEGER PRIMARY KEY, clueweb_id TEXT UNIQUE, url TEXT);
+CREATE UNIQUE INDEX cwindex on urls (url, clueweb_id);
+```
+
+The database creation can be performed using the script **[TODO]**. Depending on the number of records inserted this can require significant amounts of time and disk space. For example a database containing all the English language records in `ClueWeb22_L` is roughly 870GB.
+
+The advantage of this format is that the indexing allows very fast domain or URL searches to be performed. The script `clueweb_url_domain_lookup.py` allows you to supply either a set of URLs or a set of domains and generate a CSV file listing all (ClueWeb22-ID, URL) pairs where the URL matches an input URL or domain. For example:
+
+```bash
+# find which URLs in a list appear in ClueWeb22
+python clueweb_url_domain_lookup.py -d <path to SQLite database> -u <file containing URLs to match> -o <output filename>
+# find which domains in a list appear in ClueWeb22, and record the total number of records for each
+python clueweb_url_domain_lookup.py -d <path to SQLite database> -d <file containing domains to match> -c -o <output filename>
+# do the same thing but output the full list of matching records instead
+python clueweb_url_domain_lookup.py -d <path to SQLite database> -d <file containing domains to match> -o <output filename>
+# do the same thing again, but this time limit the output to matches in ClueWeb22_B only
+python clueweb_url_domain_lookup.py -d <path to SQLite database> -d <file containing domains to match> -m B -o <output filename>
+```
+
+### Webservice
+
+`clueweb_url_domain_lookup_webservice.py` provides a simple HTTP API for querying the same type of database:
+
+```bash
+python clueweb_url_domain_lookup_webservice.py -d <path to SQLite database>
+# check the number of records where the domain matches food52.com
+curl http://localhost:5555/count/food52.com
+# retrieve the list of matching records for food52.com in CSV format
+curl http://localhost:5555/search/food52.com -o food52.com.csv
+```
 
 ## HTML data extraction for selected records
 
