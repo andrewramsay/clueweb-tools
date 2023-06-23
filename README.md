@@ -82,7 +82,31 @@ TODO
 
 ## HTML data extraction for selected records
 
-TODO
+The `data_extraction/clueweb_extract_data.py` script can be used to retrieve HTML or text data for a set of ClueWeb22-IDs. The script takes a few parameters as described below:
 
+```bash
+python clueweb_extract_data.py \
+    -r <file listing ClueWeb22-IDs> \
+    -R <ClueWeb collection root folder> \
+    -t <datatype (html or txt)> \
+    -o <output folder> \
+    -w <number of worker threads>
+```
 
+The script will use the `.offset` files provided as part of the dataset to minimize the I/O required, and will also combine reads of multiple records from the same file to avoid opening and closing it multiple times. 
+
+The output folder will be populated with a nearly-identical subset of the directory structure from the original collection. The difference is that each extracted record will be stored as a gzipped file inside a folder with a name matching that of the source file.
+
+For example, if extracting HTML data for the IDs `clueweb22-en0000-01-05566` and `clueweb22-en0000-01-05567`, the resulting output folder would be structured like this:
+
+```bash
+<output folder>
+    /html
+        /en
+            /en00
+                /en0000         # up to this point the original ClueWeb22 directory structure is used
+                    /en0000-01  # this folder name indicates the records inside were extracted from en0000-01.warc.gz
+                        /en0000-01-05566.gz # gzipped HTML for this record
+                        /en0000-01-05567.gz # gzipped HTML for this record
+```
 
