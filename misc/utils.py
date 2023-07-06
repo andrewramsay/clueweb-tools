@@ -204,8 +204,8 @@ def get_offsets(offset_file: str, record_ids: List[str]) -> List[Tuple[int, int]
     with open(offset_file, 'r') as ofp:
         for record_id in record_ids:
             # format is <subdir>-<file seq>-<record seq>
-            # e.g. en0000-00-00000
-            record_seq = int(record_id.split('-')[2])
+            # e.g. clueweb22-en0000-00-00000
+            record_seq = int(record_id.split('-')[3])
             # seek to the location in the offset file where we'll find the offsets for this record ID
             ofp.seek(record_seq * OFFSET_SIZE_BYTES)
             # read the next pair of offset values (start + end)

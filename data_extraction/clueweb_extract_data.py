@@ -50,12 +50,9 @@ class ClueWebDataExtractor:
             raise Exception(f'Missing file: {self.records_file}')
 
         self.record_ids = []
-        # read the list of record IDs from the indicated file, stripping off the prefix
-        # since we don't need it later on
+        # read the list of record IDs from the indicated file
         with open(self.records_file, 'r') as rf:
             for line in rf.readlines():
-                if line.startswith('clueweb22-'):
-                    line = line[10:] # strip off prefix
                 self.record_ids.append(line.strip())
         
         if len(self.record_ids) == 0:
@@ -92,7 +89,6 @@ class ClueWebDataExtractor:
         with open(output_file, 'wb') as df:
             for i, record_id in enumerate(record_ids):
                 df.write(record_data[i])
-
         return len(record_data)
 
     def run(self) -> None:
