@@ -26,7 +26,7 @@ class ClueWebDataExtractor:
             extract the record number (the final 5 digits)
             open the offset file and parse the start/end offsets for the record
             open the data file, seek to the start offset and read (end-start) bytes
-            decompress the data
+            (maybe?) decompress the data
 
     The offsets are stored in a fixed-length format, so finding the offset for a record simply requires
     seeking to the location (record number * offset size) in the offset file. 
@@ -81,17 +81,17 @@ class ClueWebDataExtractor:
         # we want to copy some of the path components from the original data file path
         [lang_code, stream_id, subdir, filename] = Path(data_path).parts[-4:]
 
-        # create the directory structure. the [:-8] slicing is to remove the extension
-        # from the data file, which will either be .warc.gz or .json.gz depending on the 
-        # format (i.e. both 8 characters long)
-        output_path = os.path.join(self.output_path, lang_code, stream_id, subdir, filename[:-8])
+        # create the directory structure described above
+        output_path = os.path.join(self.output_path, lang_code, stream_id, subdir)
         os.makedirs(output_path, exist_ok=True)
-        for i, record_id in enumerate(record_ids):
-            # TODO decompress here if the "decompress" parameter is set
-            output_file = os.path.join(output_path, record_id + '.gz')
-            if not os.path.exists(output_file):
-                with open(output_file, 'wb') as df:
-                    df.write(record_data[i])
+
+        # name the output file to match the original, e.g. for a set of records
+        # take from ../en0000-00.json.gz, the output file will also be named
+        # en0000-00.json.gz
+        output_file = os.path.join(output_path, filename)
+        with open(output_file, 'wb') as df:
+            for i, record_id in enumerate(record_ids):
+                df.write(record_data[i])
 
         return len(record_data)
 
