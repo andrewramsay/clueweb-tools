@@ -127,7 +127,7 @@ python clueweb_extract_data.py \
 
 The script will use the `.offset` files provided as part of the dataset to minimize the I/O required, and will also combine reads of multiple records from the same file to avoid opening and closing it multiple times. 
 
-The output folder will be populated with a nearly-identical subset of the directory structure from the original collection. The difference is that each extracted record will be stored as a gzipped file inside a folder with a name matching that of the source file.
+The output folder will be populated with a nearly-identical subset of the directory structure from the original collection. The difference is that the output files will only contain the compressed data for the selected records (sorted by ClueWeb22-ID).
 
 For example, if extracting HTML data for the IDs `clueweb22-en0000-01-05566` and `clueweb22-en0000-01-05567`, the resulting output folder would be structured like this:
 
@@ -136,9 +136,7 @@ For example, if extracting HTML data for the IDs `clueweb22-en0000-01-05566` and
     /html
         /en
             /en00
-                /en0000         # up to this point the original ClueWeb22 directory structure is used
-                    /en0000-01  # this folder name indicates the records inside were extracted from en0000-01.warc.gz
-                        /en0000-01-05566.gz # gzipped HTML for this record
-                        /en0000-01-05567.gz # gzipped HTML for this record
+                /en0000
+                    /en0000-01.json.gz  # this file contains only the data for the 2 selected records
 ```
 
