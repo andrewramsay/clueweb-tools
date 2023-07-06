@@ -62,6 +62,16 @@ class ClueWebDomainURLLookup:
             for row in self.conn.execute('SELECT clueweb_id, url FROM urls WHERE url >= ? AND url GLOB ?', (domain, domain + '/*')):
                 results.append(row)
         return results
+
+    def sample_domain(self, domain: str, count: int, mode: str = 'L') -> List[Tuple[str, str]]:
+        results = []
+
+        if mode != 'L':
+            limiting_id = self._mode_to_id(mode)
+            for row in self.conn.execute('SELECT clueweb_id, url FROM urls WHERE (url >= ? AND url GLOB ?) AND clueweb_id < ? ORDER BY random() LIMIT ?', (domain, domain + '/*', limiting_id, count)):
+                results.append(row)
+        else:
+            for row in self.conn.execute('SELECT clueweb_id, url FROM urls WHERE url >= ? AND url GLOB ? ORDER BY random() LIMIT ?', (domain, domain + '/*', count)):
                 results.append(row)
         return results
 
@@ -87,9 +97,24 @@ class ClueWebDomainURLLookup:
 
         return result
 
+    def search_id(self, id: str, mode: str = 'L') -> Union[Tuple[str, str], None]:
+        if mode != 'L':
+            limiting_id = self._mode_to_id(mode)
+            cursor = self.conn.execute('SELECT clueweb_id, url FROM urls WHERE clueweb_id = ? AND clueweb_id < ?', (id, limiting_id))
+        else:
+            cursor = self.conn.execute('SELECT clueweb_id, url FROM urls WHERE clueweb_id = ?', (id, ))
+
+        result = cursor.fetchone()
+        if result is None:
+            print('FAILED TO MATCH', id)
+            return None
+
+        return result
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-d', '--database', help='Path to ClueWeb SQLite index database', required=True, type=str)
+    parser.add_argument('-i', '--input_ids', help='Path to a CSV file listing the IDs to check', type=str)
     parser.add_argument('-u', '--input_urls', help='Path to a CSV file listing the URLs to check', type=str)
     parser.add_argument('-D', '--input_domains', help='Path to a CSV file listing the domains to check', type=str)
     parser.add_argument('-c', '--count_domain_matches', help='Only output numbers of matching records for supplied domains', action='store_true')
@@ -98,11 +123,11 @@ if __name__ == "__main__":
     parser.add_argument('-m', '--mode', help='Select subset of ClueWeb22: "B", "A", or "L" (default is L)', default='L', type=str)
     args = parser.parse_args()
 
-    if args.input_urls is not None and args.input_domains is not None:
-        print('You must only provide one of -u/--input_urls and -D/--input_domains')
+    if args.input_urls is not None and args.input_domains is not None and args.input_ids is not None:
+        print('You must only provide one of -u/--input_urls, -D/--input_domains, or -i/--input_ids')
         sys.exit(0)
-    elif args.input_urls is None and args.input_domains is None:
-        print('You must provide either -u/--input_urls or -D/--input_domains')
+    elif args.input_urls is None and args.input_domains is None and args.input_ids is None:
+        print('You must provide one of -u/--input_urls, -D/--input_domains, or -i/--input_ids')
         sys.exit(0)
 
     if args.mode not in ['B', 'A', 'L']:
@@ -110,19 +135,31 @@ if __name__ == "__main__":
         sys.exit(0)
 
     lookup = ClueWebDomainURLLookup(args.database)
-    input_list = lookup.read_inputs(args.input_urls if args.input_urls is not None else args.input_domains, args.input_column)
+    input_list = []
+    if args.input_urls is not None:
+        input_list = lookup.read_inputs(args.input_urls, args.input_column)
+    elif args.input_domains is not None:
+        input_list = lookup.read_inputs(args.input_domains, args.input_column)
+    elif args.input_ids is not None:
+        input_list = lookup.read_inputs(args.input_ids, args.input_column)
 
     if args.input_urls is not None:
         print(f'> Looking up {len(input_list)} URLs in ClueWeb22-{args.mode}')
         results = list(filter(lambda x: x is not None, [lookup.search_url(url, args.mode) for url in input_list]))
         lookup.write_results(results, args.output_file)
         print(f'> Wrote {len(results)} URL record matches ({100 * (len(results)/len(input_list)):.1f}%) to {args.output_file}')
+    elif args.input_ids is not None:
+        print(f'> Looking up {len(input_list)} IDs in ClueWeb22-{args.mode}')
+        results = list(filter(lambda x: x is not None, [lookup.search_id(id, args.mode) for id in input_list]))
+        lookup.write_results(results, args.output_file)
+        print(f'> Wrote {len(results)} ID record matches ({100 * (len(results)/len(input_list)):.1f}%) to {args.output_file}')
     else:
         if args.count_domain_matches:
             print(f'> Counting matching records for {len(input_list)} domains in ClueWeb22-{args.mode}')
             results = [(domain, lookup.count_domain(domain, args.mode)) for domain in input_list]
             lookup.write_results(results, args.output_file)
-            print(f'> Wrote {len(results)} domain count results to {args.output_file}')
+            total_records = sum([r[1] for r in results])
+            print(f'> Wrote {len(results)} domain count results ({total_records:,} total records) to {args.output_file}')
         else:
             print(f'> Looking up {len(input_list)} domains in ClueWeb22-{args.mode}')
             results = []
