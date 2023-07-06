@@ -137,7 +137,8 @@ class ClueWebDataExtractor:
                 if total_extracted - last_extracted > 100:
                     elapsed = time.time() - started_at
                     remaining = (len(self.record_ids) - total_extracted) / (total_extracted / elapsed)
-                    print(f'> Extracted = {total_extracted}/{len(self.record_ids)}, elapsed = {elapsed:.1f}s, remaining={fmt_timespan(remaining)}')
+                    percent = (total_extracted / len(self.record_ids)) * 100
+                    print(f'> Extracted = {total_extracted:,}/{len(self.record_ids):,}, {percent:.2f}%, elapsed = {fmt_timespan(elapsed)}, remaining={fmt_timespan(remaining)}')
                     last_extracted = total_extracted
 
 if __name__ == "__main__":
