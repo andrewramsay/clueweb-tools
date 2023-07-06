@@ -56,19 +56,21 @@ class ClueWebDomainURLLookup:
 
         if mode != 'L':
             limiting_id = self._mode_to_id(mode)
-            for row in self.conn.execute('SELECT clueweb_id, url FROM urls WHERE (url >= ? AND url GLOB ?) AND clueweb_id < ?', (domain, domain + '*', limiting_id)):
+            for row in self.conn.execute('SELECT clueweb_id, url FROM urls WHERE (url >= ? AND url GLOB ?) AND clueweb_id < ?', (domain, domain + '/*', limiting_id)):
                 results.append(row)
         else:
-            for row in self.conn.execute('SELECT clueweb_id, url FROM urls WHERE url >= ? AND url GLOB ?', (domain, domain + '*')):
+            for row in self.conn.execute('SELECT clueweb_id, url FROM urls WHERE url >= ? AND url GLOB ?', (domain, domain + '/*')):
+                results.append(row)
+        return results
                 results.append(row)
         return results
 
     def count_domain(self, domain: str, mode: str = 'L') -> int:
         if mode != 'L':
             limiting_id = self._mode_to_id(mode)
-            res = self.conn.execute('SELECT COUNT(clueweb_id) FROM urls WHERE (url >= ? AND url GLOB ?) AND clueweb_id < ?', (domain, domain + '*', limiting_id))
+            res = self.conn.execute('SELECT COUNT(clueweb_id) FROM urls WHERE (url >= ? AND url GLOB ?) AND clueweb_id < ?', (domain, domain + '/*', limiting_id))
         else:
-            res = self.conn.execute('SELECT COUNT(clueweb_id) FROM urls WHERE url >= ? AND url GLOB ?', (domain, domain + '*'))
+            res = self.conn.execute('SELECT COUNT(clueweb_id) FROM urls WHERE url >= ? AND url GLOB ?', (domain, domain + '/*'))
         count = res.fetchone()[0]
         return count
 
