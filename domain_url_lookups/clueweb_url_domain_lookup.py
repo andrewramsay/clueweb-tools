@@ -4,6 +4,7 @@ import csv
 import hashlib
 import sqlite3
 import argparse
+import random
 from typing import List, Tuple, Union
 
 from flask import Flask, request, send_file, Response
@@ -29,10 +30,13 @@ class ClueWebDomainURLLookup:
     the English-only subset of ClueWeb22-L).
     """
 
-    def __init__(self, db_path: str) -> None:
+    def __init__(self, db_path: str, random_seed: Union[None, float] = None) -> None:
         if not os.path.exists(db_path):
             raise Exception('Missing database')
         self.conn = sqlite3.connect(db_path, check_same_thread=False)
+
+        if random_seed is not None:
+            random.seed(random_seed)
 
     def _mode_to_id(self, mode: str) -> str:
         return FIRST_A_ID if mode == 'B' else FIRST_L_ID
@@ -68,12 +72,15 @@ class ClueWebDomainURLLookup:
 
         if mode != 'L':
             limiting_id = self._mode_to_id(mode)
-            for row in self.conn.execute('SELECT clueweb_id, url FROM urls WHERE (url >= ? AND url GLOB ?) AND clueweb_id < ? ORDER BY random() LIMIT ?', (domain, domain + '/*', limiting_id, count)):
+            for row in self.conn.execute('SELECT clueweb_id, url FROM urls WHERE (url >= ? AND url GLOB ?) AND clueweb_id < ?', (domain, domain + '/*', limiting_id)):
                 results.append(row)
         else:
-            for row in self.conn.execute('SELECT clueweb_id, url FROM urls WHERE url >= ? AND url GLOB ? ORDER BY random() LIMIT ?', (domain, domain + '/*', count)):
+            for row in self.conn.execute('SELECT clueweb_id, url FROM urls WHERE url >= ? AND url GLOB ?', (domain, domain + '/*')):
                 results.append(row)
-        return results
+
+        # randomly shuffle results (in-place) and return the first <count> entries
+        random.shuffle(results)
+        return results[:count]
 
     def count_domain(self, domain: str, mode: str = 'L') -> int:
         if mode != 'L':
