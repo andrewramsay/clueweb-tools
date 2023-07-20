@@ -1,14 +1,16 @@
-import os
 import argparse
-import time
-import sys
-from pathlib import Path
-from typing import TextIO, Tuple, List
 import concurrent.futures
+import gzip
+import os
+import sys
+import time
+from bz2 import BZ2Compressor
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
+from typing import List, Tuple
 
 sys.path.append(os.path.dirname(os.path.split(os.path.abspath(__file__))[0]))
-from misc.utils import id_to_data_file_path, get_offsets, extract_records, fmt_timespan
+from misc.utils import extract_records, fmt_timespan, get_offsets, id_to_data_file_path
 
 # each offset value in the .offset files consists of a 10 digit
 # character string plus a newline
@@ -34,11 +36,11 @@ class ClueWebDataExtractor:
     The ClueWeb data file formats are described in detail at https://lemurproject.org/clueweb22/docspecs.php.
     """
 
-    def __init__(self, records_file: str, root: str, datatype: str, output_path: str, decompress: bool, workers: int) -> None:
+    def __init__(self, records_file: str, root: str, datatype: str, output_path: str, compress_bzip2: bool, workers: int) -> None:
         self.records_file = records_file
         self.root = root
         self.datatype = datatype
-        self.decompress = decompress
+        self.compress_bzip2 = compress_bzip2
         self.workers = workers
 
         if datatype != 'txt' and datatype != 'html':
@@ -58,7 +60,7 @@ class ClueWebDataExtractor:
         if len(self.record_ids) == 0:
             raise Exception(f'Failed to parse any record IDs from {self.records_file}')
         
-    def extract_data(self, data_path: str, offset_path: str, record_ids: List[str]) -> int:
+    def extract_data(self, data_path: str, offset_path: str, record_ids: List[str]) -> Tuple[int, int]:
         """
         Extract a set of ClueWeb-22 records from a single file.
 
@@ -68,7 +70,7 @@ class ClueWebDataExtractor:
             record_ids (List[str]): the set of record IDs to extract (5 digit strings)
 
         Returns:
-            the number of extracted records
+            tuple(number of extracted records, number of bytes written)
         """
         offsets = get_offsets(offset_path, record_ids)
         record_data = extract_records(data_path, offsets)
@@ -84,12 +86,31 @@ class ClueWebDataExtractor:
 
         # name the output file to match the original, e.g. for a set of records
         # take from ../en0000-00.json.gz, the output file will also be named
-        # en0000-00.json.gz
+        # en0000-00.json.gz (except when recompressing to bz2, in which case
+        # it will be given a .json.bz2 extension)
+        bz2_c = BZ2Compressor()
         output_file = os.path.join(output_path, filename)
+        if self.compress_bzip2:
+            output_file = output_file.replace('.json.gz', '.json.bz2')
+
+        bytes_written = 0
         with open(output_file, 'wb') as df:
-            for i, record_id in enumerate(record_ids):
-                df.write(record_data[i])
-        return len(record_data)
+            for i, _ in enumerate(record_ids):
+                if self.compress_bzip2:
+                    # if bzip2 compression is required, each record needs to be
+                    # gunzipped and recompressed here
+                    uncompressed_data = gzip.decompress(record_data[i])
+                    df.write(bz2_c.compress(uncompressed_data))
+                else:
+                    df.write(record_data[i])
+
+            # the BZ2Compressor object must be flushed to write out the
+            # final set of bytes into the archive
+            if self.compress_bzip2:
+                df.write(bz2_c.flush())
+            bytes_written = df.tell()
+
+        return len(record_data), bytes_written
 
     def run(self) -> None:
         """
@@ -118,6 +139,7 @@ class ClueWebDataExtractor:
         started_at = time.time()
         total_extracted = 0
         last_extracted = 0
+        bytes_written = 0
 
         # create a ThreadPool with the specified number of worker threads, and distribute
         # the set of records across the pool
@@ -128,13 +150,14 @@ class ClueWebDataExtractor:
                 future_objs.append(pool.submit(self.extract_data, data_path, offset_path, record_ids))
             
             for future in concurrent.futures.as_completed(future_objs):
-                records = future.result()
+                records, new_bytes_written = future.result()
                 total_extracted += records
+                bytes_written += new_bytes_written
                 if total_extracted - last_extracted > 100:
                     elapsed = time.time() - started_at
                     remaining = (len(self.record_ids) - total_extracted) / (total_extracted / elapsed)
                     percent = (total_extracted / len(self.record_ids)) * 100
-                    print(f'> Extracted = {total_extracted:,}/{len(self.record_ids):,}, {percent:.2f}%, elapsed = {fmt_timespan(elapsed)}, remaining={fmt_timespan(remaining)}')
+                    print(f'> Extracted {total_extracted:,}/{len(self.record_ids):,}, {percent:.2f}%, {bytes_written/1024**3:.2f}GB written, elapsed = {fmt_timespan(elapsed)}, remaining={fmt_timespan(remaining)}')
                     last_extracted = total_extracted
 
 if __name__ == "__main__":
@@ -143,7 +166,7 @@ if __name__ == "__main__":
     parser.add_argument('-R', '--root', help='Path to ClueWeb22 dataset', required=True, type=str)
     parser.add_argument('-t', '--datatype', help='Data format to extract, either txt or html', required=True, type=str)
     parser.add_argument('-o', '--output_path', help='Path to store the output files', required=True, type=str)
-    parser.add_argument('-d', '--decompress', help='Decompress the gzipped data after extracting', action='store_true')
+    parser.add_argument('-b', '--bzip2', help='Decompress the gzipped records and recompress using bzip2', action='store_true')
     parser.add_argument('-w', '--workers', help='Size of worker thread pool', required=True, type=int)
     args = parser.parse_args()
-    ClueWebDataExtractor(args.records_file, args.root, args.datatype, args.output_path, args.decompress, args.workers).run()
+    ClueWebDataExtractor(args.records_file, args.root, args.datatype, args.output_path, args.bzip2, args.workers).run()
