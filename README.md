@@ -1,6 +1,6 @@
 # ClueWeb tools
 
-This is a collection of Python and shell scripts used to run metadata scans of the `ClueWeb2022_L` dataset in order to generate a full `(ClueWeb22-ID, URL)` index in CSV format, plus various other potentially useful scripts.
+This is a collection of Python and shell scripts used to run metadata scans of the [ClueWeb2022-L](https://lemurproject.org/clueweb22/) dataset in order to generate a full `(ClueWeb22-ID, URL)` index in CSV format, plus various other potentially useful scripts.
 
 The scripts are split into a few different categories:
 
@@ -8,7 +8,7 @@ The scripts are split into a few different categories:
  * Using the extracted metadata to search for domains or exact URLs (`/domain_url_lookups`)
  * Extracting HTML/text data for selected records (`/data_extraction`)
 
-For more details on the scripts, see below. For further information about the `ClueWeb22` dataset, see [here](https://lemurproject.org/clueweb22/).
+For more details on the scripts, see below. For further information about the `ClueWeb22` dataset, see [the official website](https://lemurproject.org/clueweb22/).
 
 ## Metadata scanning scripts
 
