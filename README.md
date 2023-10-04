@@ -38,7 +38,7 @@ In the "dynamic" version, the intent is that only a single job is required which
 # in each file. This database is then used by the scanning scripts to feed files to workers. 
 #
 # python clueweb_dbwrapper.py -r <path to ClueWeb dataset> -o <output database filename>
-python -r /path/to/ClueWeb22_L -o clueweb_L_files.db
+python clueweb_dbwrapper.py -r /path/to/ClueWeb22_L -o clueweb_L_files.db
 
 # (assuming the "dynamic" scripts are being used)
 # 2. Launch an instance of clueweb_metadata_scanner_dynamic.py 
